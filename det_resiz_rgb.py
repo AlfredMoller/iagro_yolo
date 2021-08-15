@@ -174,9 +174,7 @@ def login():
 
         try:
             connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
-            """connection = psy.connect(host='localhost', port='5432',
-                                     database='Iagrodb', user='postgres',
-                                     password='moller97')"""
+
             cursor = connection.cursor()
             cursor.execute('SELECT password,name,lastname,id_user FROM accounts WHERE username = %s', (username,))
             row = cursor.fetchone()
@@ -250,8 +248,6 @@ def register():
             connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
             cursor = connection.cursor()
 
-            #sql = "SELECT * FROM accounts WHERE username = %s"
-            #cursor.execute(sql, (username,))
             cursor.callproc('check_usrexist',[username])
             account = cursor.fetchone()
             if account:
@@ -260,9 +256,7 @@ def register():
                 return jsonify(message=msgexist)
 
             else:
-                #sql = "insert into accounts( username, password, name, lastname, telephone, identification) values ( %s, %s, %s, %s, %s, %s)"
-                #args = ( username, encryptpass, name, lastname, telephone, identif)
-                #cursor.execute(sql, args)
+
                 cursor.callproc('insert_newusr', [username, encryptpass, name, lastname, telephone, identif])
                 connection.commit()
                 msgok = "Usuario registrado con Éxito!"
@@ -326,8 +320,6 @@ def list_user_info():
             connection = psy.connect(host= host_con, port= port_con ,database= db_con, user= user_con, password= pass_con)
             cursor = connection.cursor()
 
-            #sql= " SELECT username, name, lastname, telephone, identification FROM accounts WHERE accounts.ID = '{0}'".format(userid)
-            #cursor.execute(sql)
             # -> Replaced cursor Query for store procedure to improve security at moment fo bringing datas
             cursor.callproc('get_usrdata', [userid])
             row = cursor.fetchone()
