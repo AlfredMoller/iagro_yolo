@@ -247,7 +247,6 @@ def register():
         try:
             connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
             cursor = connection.cursor()
-
             cursor.callproc('check_usrexist',[username])
             account = cursor.fetchone()
             if account:
@@ -291,7 +290,7 @@ def updt_user_info():
         try:
             connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
             cursor = connection.cursor()
-            cursor.execute(""" UPDATE accounts SET username= %s, password= %s, name= %s, lastname =%s, telephone= %s, identification =%s  where accounts.id_user =%s  """, (usr_mail, encryptpass, usr_name, usr_last, usr_tel, usr_ident, usr_id))
+            cursor.callproc('update_usr', [usr_mail, encryptpass, usr_name, usr_last, usr_tel, usr_ident, usr_id])
             connection.commit()
             msgok = "Perfil de Usuario Actualizado!!!"
             print(msgok)
@@ -305,8 +304,8 @@ def updt_user_info():
         finally:
             connection.close()
 
-#---------------------------------------------------List User Request---------------------------------------------------
 
+#---------------------------------------------------List User Request---------------------------------------------------
 
 @app.route('/list_user', methods=['GET'])
 def list_user_info():
@@ -332,12 +331,92 @@ def list_user_info():
 
             return jsonify(mail=user_mail, name=user_name, lastn=user_last, telephone= user_tel, ident= user_ident)
 
-
         except Error as error:
             print(error)
         finally:
             cursor.close()
             connection.close()
+
+
+#---------------------------------------------------List User Monitorin Position Request---------------------------------------------------
+
+def get_user_position(date):
+    markers = list()
+    try:
+        connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
+        cursor = connection.cursor()
+        cursor.callproc('get_monitlist',[date])
+        datas = cursor.fetchall()
+
+        for r in datas:
+            marker_dict = dict(city= str(r[0]), date= str(r[1]), latitude= str(r[2]), longitude= str(r[3]), people= str(r[4]), plague= str(r[5]))
+            markers.append(marker_dict)
+
+    except Error as error:
+        print(error)
+    finally:
+        cursor.close()
+        connection.close()
+    print(markers)
+    return markers
+
+
+#---------------------------------------------------List User Hisotiry Request---------------------------------------------------
+
+def get_position(date, usu):
+    markers= list()
+    try:
+        connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
+        cursor = connection.cursor()
+        cursor.callproc('get_usrhist',[date, usu])
+        datas = cursor.fetchall()
+
+        for r in datas:
+           marker_dict = dict(latitude=str(r[0]), longitude =str(r[1]), plague= str(r[2]), city= str(r[3]), id= int(r[4]))
+           markers.append(marker_dict)
+
+    except Error as error:
+        print(error)
+    finally:
+        cursor.close()
+        connection.close()
+
+    print(markers)
+    return markers
+
+
+def get_life_cycle(date):
+    life_cycle = list()
+    chain_received = len(date.split(','))
+    print("size of:", chain_received)
+
+    try:
+        connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
+        cursor = connection.cursor()
+
+        if(chain_received >= 2):
+            print("There's more than one object")
+            my_list = date.split(",")
+            print(my_list)
+            cursor.callproc('get_mlifecycl',[my_list])
+
+        elif (chain_received == 1):
+            print("There's only one object")
+            cursor.callproc('get_slifecycl', [date])
+        datas = cursor.fetchall()
+
+        for r in datas:
+            row= dict(latitude=str(r[0]), longitude =str(r[1]), plague= str(r[2]))
+            life_cycle.append(row)
+
+    except Error as error:
+        print(error)
+    finally:
+        cursor.close()
+        connection.close()
+
+
+    return life_cycle
 
 
 def canalizar(request_image,image_name):
@@ -415,6 +494,24 @@ def get_image():
         return Response(response=df, status=200, mimetype='image/png')
     except FileNotFoundError:
         abort(404)
+
+
+@app.route('/monitoring_list_map', methods=['GET'])
+def monitoring_listmap():
+    if request.method == 'GET':
+        print("Listing Monitored Users...")
+        date = request.form.get('date')
+        #return jsonify( get_user_position(date))
+        return  jsonify(get_life_cycle(date))
+
+
+@app.route('/list_map', methods=['GET'])
+def pest_listmap():
+    if request.method == 'GET':
+        print("Listing User History....")
+        date = request.form.get('date')
+        usu = request.form.get('user')
+        return jsonify(get_position(date,usu) )
 
 # Run server
 if __name__ == '__main__':
