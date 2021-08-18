@@ -169,14 +169,11 @@ def login():
         password = request.form.get('password')
         print("usuario",username)
         print("pass",password)
-        #username = request.form['username']
-        #password = request.form['password']
 
         try:
             connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
-
             cursor = connection.cursor()
-            cursor.execute('SELECT password,name,lastname,id_user FROM accounts WHERE username = %s', (username,))
+            cursor.callproc('get_logus',[username])
             row = cursor.fetchone()
 
             if row:
@@ -255,7 +252,6 @@ def register():
                 return jsonify(message=msgexist)
 
             else:
-
                 cursor.callproc('insert_newusr', [username, encryptpass, name, lastname, telephone, identif])
                 connection.commit()
                 msgok = "Usuario registrado con Éxito!"
@@ -385,28 +381,32 @@ def get_position(date, usu):
     return markers
 
 
-def get_life_cycle(date):
+#---------------------------------------------------List Pest Life Cycle Request---------------------------------------------------
+
+def get_life_cycle(pest_values):
     life_cycle = list()
-    chain_received = len(date.split(','))
+    chain_received = len(pest_values.split(','))
     print("size of:", chain_received)
 
     try:
         connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
         cursor = connection.cursor()
 
-        if(chain_received >= 2):
-            print("There's more than one object")
-            my_list = date.split(",")
+        if(chain_received > 1):
+            print("There's more than one object...")
+            my_list = pest_values.split(",")
+            # removing any kind of duplicates pest values in the lists with set() function
+            lista= list(set(my_list))
             print(my_list)
-            cursor.callproc('get_mlifecycl',[my_list])
+            cursor.callproc('get_mlifecycl',[lista])
 
         elif (chain_received == 1):
-            print("There's only one object")
-            cursor.callproc('get_slifecycl', [date])
+            print("There's only one object...")
+            cursor.callproc('get_slifecycl', [pest_values])
         datas = cursor.fetchall()
 
         for r in datas:
-            row= dict(latitude=str(r[0]), longitude =str(r[1]), plague= str(r[2]))
+            row= dict(name= str(r[0]), life_cycle= str(r[1]), population= str(r[2]))
             life_cycle.append(row)
 
     except Error as error:
@@ -414,7 +414,6 @@ def get_life_cycle(date):
     finally:
         cursor.close()
         connection.close()
-
 
     return life_cycle
 
