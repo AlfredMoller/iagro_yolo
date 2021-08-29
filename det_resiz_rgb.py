@@ -3,6 +3,8 @@ from absl import app, logging
 import cv2
 import numpy as np
 import tensorflow as tf
+from werkzeug.utils import secure_filename
+
 from yolov3_tf2.models import (
     YoloV3, YoloV3Tiny
 )
@@ -15,7 +17,7 @@ from flask_bcrypt import Bcrypt
 import bcrypt
 import psycopg2 as psy
 from psycopg2 import Error
-import json
+from dbx_droptest import dbx_upload
 
 # Define flask app
 app = Flask(__name__, static_url_path='/static')
@@ -29,6 +31,9 @@ port_con = '5432'
 db_con = 'd9iu7pl5ikjcgh'
 user_con = 'rkjkiitazamftd'
 pass_con = 'ba53f6b72bc5f4dd0e2da437f05685416a7512cec11894065885561412448edb'
+
+#Provisory Params for DropBox image storage testing
+dbox_key = 'sl.A3CqKv2E_owvavhfMoXbcDlr6hTNL-k81lgMAafPHuGkROIfzHjMSx5vWqmomo1jizfP8sQWxmXPx5Lw3Lo1eEjHfIUtpLvGNlkRSLDkgl9BXhNMpwC6tiGDMAveBTXhazNnR5s'
 
 # customize your API through the following parameters
 classes_path = './data/labels/coco.names'
@@ -157,6 +162,41 @@ def load_image_into_numpy_array(image):
         (im_height, im_width, 3)).astype(np.uint8)
 
 
+#---------------------------------------------------Pest Id stored Function---------------------------------------------------
+
+def get_pest_id(name) -> int:
+    row = None
+    try:
+        connection = psy.connect(host=host_con, port= port_con, database= db_con, user=user_con, password=pass_con)
+        cursor = connection.cursor()
+        cursor.callproc('get_pestId',[name])
+        row = cursor.fetchone()
+        print("ID de Plaga:", row[0])
+    except Error as error:
+        print(error)
+    finally:
+        cursor.close()
+        connection.close()
+    return int(row[0])
+
+
+#---------------------------------------------------Save Distory Detail Function---------------------------------------------------
+
+def save_history_detail(idhistory, det_final):
+    """-------------------Modified Version---------------------"""
+    name = det_final
+    idpest = get_pest_id(name)
+    try:
+        connection = psy.connect(host= host_con, port= port_con, database= db_con,  user= user_con, password= pass_con)
+        cursor = connection.cursor()
+        cursor.callproc('save_hst_dt', [idhistory, idpest])
+        connection.commit()
+    except Error as error:
+        print(error)
+    finally:
+        cursor.close()
+        connection.close()
+
 
 #---------------------------------------------------Login Request---------------------------------------------------
 
@@ -209,12 +249,14 @@ def login():
             cursor.close()
             connection.close()
 
+
+#---------------------------------------------------Get Last Record Function---------------------------------------------------
+
 def lastrecord() -> int:
-    sql = "SELECT MAX(id_user) from accounts"
     try:
         connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
         cursor = connection.cursor()
-        cursor.execute(sql)
+        cursor.callproc('get_lastId')
         row = cursor.fetchone()
         connection.commit()
     except Error as error:
@@ -223,6 +265,7 @@ def lastrecord() -> int:
         cursor.close()
         connection.close()
     return int(row[0])
+
 
 #---------------------------------------------------User Record Request---------------------------------------------------
 
@@ -334,7 +377,7 @@ def list_user_info():
             connection.close()
 
 
-#---------------------------------------------------List User Monitorin Position Request---------------------------------------------------
+#---------------------------------------------------List User Monitorin Position Function---------------------------------------------------
 
 def get_user_position(date):
     markers = list()
@@ -357,7 +400,7 @@ def get_user_position(date):
     return markers
 
 
-#---------------------------------------------------List User Hisotiry Request---------------------------------------------------
+#---------------------------------------------------List User Hisotiry Function---------------------------------------------------
 
 def get_position(date, usu):
     markers= list()
@@ -381,12 +424,12 @@ def get_position(date, usu):
     return markers
 
 
-#---------------------------------------------------List Pest Life Cycle Request---------------------------------------------------
+#---------------------------------------------------List Pest Life Cycle Function---------------------------------------------------
 
 def get_life_cycle(pest_values):
     life_cycle = list()
     chain_received = len(pest_values.split(','))
-    print("size of:", chain_received)
+    print("size of chain:", chain_received)
 
     try:
         connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
@@ -418,7 +461,9 @@ def get_life_cycle(pest_values):
     return life_cycle
 
 
-def canalizar(request_image,image_name):
+#---------------------------------------------------Image Prediction Function---------------------------------------------------
+
+def predict_image(request_image,image_name):
 
     print(image_name)
     # we made a resize and crop of the image to make a quick and proper detection
@@ -463,9 +508,8 @@ def canalizar(request_image,image_name):
     os.remove(output_path + image_name)
     return response
 
+#---------------------------------------------------Image Post Request---------------------------------------------------
 
-
-# API that returns image with detections on it
 @app.route('/image', methods= ['POST'])
 def get_image():
     image = request.files["images"]
@@ -483,11 +527,11 @@ def get_image():
 
         requ = Image.open(output_path + nuevo)
         lt = nuevo
-        df= canalizar(requ,lt)
+        df= predict_image(requ,lt)
 
     else:
         request_image = Image.open(image)
-        df= canalizar(request_image,image_name)
+        df= predict_image(request_image,image_name)
 
     try:
         return Response(response=df, status=200, mimetype='image/png')
@@ -500,8 +544,8 @@ def monitoring_listmap():
     if request.method == 'GET':
         print("Listing Monitored Users...")
         date = request.form.get('date')
-        #return jsonify( get_user_position(date))
-        return  jsonify(get_life_cycle(date))
+        return jsonify( get_user_position(date))
+
 
 
 @app.route('/list_map', methods=['GET'])
@@ -511,6 +555,19 @@ def pest_listmap():
         date = request.form.get('date')
         usu = request.form.get('user')
         return jsonify(get_position(date,usu) )
+
+
+
+@app.route('/uplad_file', methods=['POST'])
+def upl_file_dbx():
+    if request.method == 'POST':
+        print("Preparing upload file....")
+        up_file = request.files['image']
+        image_name = up_file.filename
+        sec_file = secure_filename(image_name)
+        dbx_upload(up_file.read(),sec_file)
+        return jsonify("hola")
+
 
 # Run server
 if __name__ == '__main__':
