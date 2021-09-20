@@ -18,6 +18,7 @@ import bcrypt
 import psycopg2 as psy
 from psycopg2 import Error
 from dbx_droptest import dbx_upload
+from itertools import  groupby
 
 # Define flask app
 app = Flask(__name__, static_url_path='/static')
@@ -200,13 +201,15 @@ def save_history_detail(idhistory, det_final):
 
 #---------------------------------------------------Login Request---------------------------------------------------
 
-@app.route('/login', methods=['GET'])
+@app.route('/login', methods=['POST'])
 def login():
     # Check if "username" and "password" POST requests exist (user submitted form)
-    if request.method == 'GET':
+    if request.method == 'POST':
 
-        username = request.form.get('username')
-        password = request.form.get('password')
+        #username = request.form.get('username')
+        #password = request.form.get('password')
+        username = request.form['username']
+        password = request.form['password']
         print("usuario",username)
         print("pass",password)
 
@@ -485,15 +488,24 @@ def predict_image(request_image,image_name):
     boxes, scores, classes, nums = yolo(img)
     t2 = time.time()
     print('time: {}'.format(t2 - t1))
-    lista_res = list()
+    lista_pred = []
+    lista_predfinal = []
 
     print('detections:')
+    #loop to remove trash prediction values
     for i in range(nums[0]):
-        res = dict(name=str(class_names[int(classes[0][i])]), scores= float( np.array(scores[0][i])  ) )
-        lista_res.append(res)
-    print(lista_res)
+        pred_ardict= dict(name=str(class_names[int(classes[0][i])]), scores= float( np.array(scores[0][i])  ) )
+        lista_pred.append(pred_ardict)
+        for key, group in groupby(lista_pred, lambda x: x["name"]):
+            max_y = 0
+            for res in group:
+                max_y = max(max_y, res["scores"])
+            lista_predfinal.append({"name": key, "scores": max_y})
+    print(lista_predfinal)
+
     #test = dict((k, v) for k, v in res.items() if v >= 5)
     #print(test)
+
     img = cv2.cvtColor(img_raw.numpy(), cv2.COLOR_RGB2BGR)
     img = draw_outputs(img, (boxes, scores, classes, nums), class_names)
     cv2.imwrite(output_path + lasted_filename, img)
