@@ -27,14 +27,14 @@ app.config['IMG_RESIZED_RATIO'] = 500
 bcrypt = Bcrypt(app)
 
 #Provisory Params for Psql connection
-host_con = 'ec2-52-0-114-209.compute-1.amazonaws.com'
+host_con = ''
 port_con = '5432'
-db_con = 'd9iu7pl5ikjcgh'
-user_con = 'rkjkiitazamftd'
-pass_con = 'ba53f6b72bc5f4dd0e2da437f05685416a7512cec11894065885561412448edb'
+db_con = ''
+user_con = ''
+pass_con = ''
 
 #Provisory Params for DropBox image storage testing
-dbox_key = 'sl.A3CqKv2E_owvavhfMoXbcDlr6hTNL-k81lgMAafPHuGkROIfzHjMSx5vWqmomo1jizfP8sQWxmXPx5Lw3Lo1eEjHfIUtpLvGNlkRSLDkgl9BXhNMpwC6tiGDMAveBTXhazNnR5s'
+dbox_key = ''
 
 # customize your API through the following parameters
 classes_path = './data/labels/coco.names'
