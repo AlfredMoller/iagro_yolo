@@ -3,7 +3,7 @@ import dropbox
 from dropbox.exceptions import ApiError, AuthError
 
 
-dbox_key = '2aPXeDN95_sAAAAAAAAAAcP47wmRizJ1bHJheJHrJJ_dwVOefc3W7lxgL0MbJPGe'
+dbox_key = ''
 dbx = dropbox.Dropbox(dbox_key)
 dropbox_bdir = '/test_dropbox3/'
 pc_bdir = '/detections/resize'
