@@ -496,12 +496,13 @@ def predict_image(request_image,image_name):
     for i in range(nums[0]):
         pred_ardict= dict(name=str(class_names[int(classes[0][i])]), scores= float( np.array(scores[0][i])  ) )
         lista_pred.append(pred_ardict)
-        for key, group in groupby(lista_pred, lambda x: x["name"]):
-            max_y = 0
-            for res in group:
-                max_y = max(max_y, res["scores"])
-            lista_predfinal.append({"name": key, "scores": max_y})
-    print(lista_predfinal)
+
+    for key, group in groupby(lista_pred, lambda x: x["name"]):
+        max_y = 0
+        for res in group:
+            max_y = max(max_y, res["scores"])
+        lista_predfinal.append({"x":key,"y":max_y})
+    print('deployable list results to DB:',lista_predfinal)
 
     #test = dict((k, v) for k, v in res.items() if v >= 5)
     #print(test)
