@@ -1,4 +1,6 @@
 import time
+from builtins import list
+
 from absl import app, logging
 import cv2
 import numpy as np
@@ -180,17 +182,55 @@ def get_pest_id(name) -> int:
         connection.close()
     return int(row[0])
 
+#---------------------------------------------------Save History Header Function---------------------------------------------------
 
-#---------------------------------------------------Save Distory Detail Function---------------------------------------------------
+def save_history():
+    #We have to check the size of the sent element into this function -> then store in the DB
+    try:
+        list_partial = [{'name': 'cat', 'scores': 0.7610567808151245}, {'name': 'cat', 'scores': 0.7610567808151245},
+                        {'name': 'dog', 'scores': 0.5901315212249756}]
+
+        #latitude, longitude,description,city,history_date,color,iduser,status
+        latitude = "-26.5326457"
+        longitude = "-57.0399334"
+        description = "Infectado"
+        city = "San Miguel"
+        his_date= "24-09-21"
+        color = "#f3435"
+        idus = 1
+        stat = "Infectado"
+
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
+        cursor = connection.cursor()
+        #float("{:.2f}".format(lp.get('scores')))
+
+        for lp in list_partial:
+            print("probamos de nuevo:", lp.get('name'))
+            cursor.callproc('save_mul_values', [latitude, longitude, description, city, his_date, color, idus, stat])
+            idhistory = lastrecord()
+            connection.commit()
+            if len(list_partial) > 0 :
+                name_onebyone = lp.get('name')
+                save_history_detail(idhistory, name_onebyone)
+            else:
+                print("Error al tratar de insertar los datos en la BD")
+    except Error as error:
+            print(error)
+    finally:
+        cursor.close()
+        connection.close()
+
+
+
+#---------------------------------------------------Save History Detail Function---------------------------------------------------
 
 def save_history_detail(idhistory, det_final):
     """-------------------Modified Version---------------------"""
-    name = det_final
-    idpest = get_pest_id(name)
+    idpest = get_pest_id(det_final)
     try:
         connection = psy.connect(host= host_con, port= port_con, database= db_con,  user= user_con, password= pass_con)
         cursor = connection.cursor()
-        cursor.callproc('save_hst_dt', [idhistory, idpest])
+        cursor.callproc('save_mul_dt', [idhistory, idpest])
         connection.commit()
     except Error as error:
         print(error)
@@ -267,7 +307,7 @@ def lastrecord() -> int:
     finally:
         cursor.close()
         connection.close()
-    return int(row[0])
+    return row[0]
 
 
 #---------------------------------------------------User Record Request---------------------------------------------------
@@ -284,8 +324,7 @@ def register():
         identif = request.form['ced']
 
         encryptpass = bcrypt.generate_password_hash(password).decode('utf-8')
-        last_record = lastrecord()
-        print("ulltimo registro guardado",last_record)
+
 
         try:
             connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
@@ -502,7 +541,10 @@ def predict_image(request_image,image_name):
         for res in group:
             max_y = max(max_y, res["scores"])
         lista_predfinal.append({"x":key,"y":max_y})
+    save_history()
     print('deployable list results to DB:',lista_predfinal)
+
+
 
     #test = dict((k, v) for k, v in res.items() if v >= 5)
     #print(test)
