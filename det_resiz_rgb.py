@@ -1,6 +1,5 @@
 import time
 from builtins import list
-
 from absl import app, logging
 import cv2
 import numpy as np
@@ -17,6 +16,8 @@ import os
 from PIL import Image
 from flask_bcrypt import Bcrypt
 import bcrypt
+import time
+from datetime import datetime
 import psycopg2 as psy
 from psycopg2 import Error
 from dbx_droptest import dbx_upload
@@ -174,7 +175,7 @@ def get_pest_id(name) -> int:
         cursor = connection.cursor()
         cursor.callproc('get_pestId',[name])
         row = cursor.fetchone()
-        print("ID de Plaga:", row[0])
+        #print("ID de Plaga:", row[0])
     except Error as error:
         print(error)
     finally:
@@ -184,32 +185,28 @@ def get_pest_id(name) -> int:
 
 #---------------------------------------------------Save History Header Function---------------------------------------------------
 
-def save_history():
+def save_history(list_partial):
     #We have to check the size of the sent element into this function -> then store in the DB
     try:
-        list_partial = [{'name': 'cat', 'scores': 0.7610567808151245}, {'name': 'cat', 'scores': 0.7610567808151245},
-                        {'name': 'dog', 'scores': 0.5901315212249756}]
-
-        #latitude, longitude,description,city,history_date,color,iduser,status
         latitude = "-26.5326457"
         longitude = "-57.0399334"
         description = "Infectado"
         city = "San Miguel"
-        his_date= "24-09-21"
+        now = datetime.now()
         color = "#f3435"
         idus = 1
         stat = "Infectado"
 
         connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
-        #float("{:.2f}".format(lp.get('scores')))
 
         for lp in list_partial:
             print("probamos de nuevo:", lp.get('name'))
-            cursor.callproc('save_mul_values', [latitude, longitude, description, city, his_date, color, idus, stat])
-            idhistory = lastrecord()
+            cursor.callproc('save_mul_values', [latitude, longitude, description, city, now.strftime('%y-%m-%d'), color, idus, stat])
             connection.commit()
-            if len(list_partial) > 0 :
+            if len(list_partial) > 0:
+                idhistory = lastrecord()
+                print("id rescatado:",idhistory)
                 name_onebyone = lp.get('name')
                 save_history_detail(idhistory, name_onebyone)
             else:
@@ -533,15 +530,16 @@ def predict_image(request_image,image_name):
     print('detections:')
     #loop to remove trash prediction values
     for i in range(nums[0]):
-        pred_ardict= dict(name=str(class_names[int(classes[0][i])]), scores= float( np.array(scores[0][i])  ) )
+        pred_ardict= dict(name=str(class_names[int(classes[0][i])]), scores= float(np.array(scores[0][i]) ))
         lista_pred.append(pred_ardict)
 
     for key, group in groupby(lista_pred, lambda x: x["name"]):
         max_y = 0
         for res in group:
             max_y = max(max_y, res["scores"])
-        lista_predfinal.append({"x":key,"y":max_y})
-    save_history()
+        lista_predfinal.append({"name":key,"scores":max_y})
+    save_history(lista_predfinal)
+
     print('deployable list results to DB:',lista_predfinal)
 
 
