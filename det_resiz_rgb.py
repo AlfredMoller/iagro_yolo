@@ -1,6 +1,5 @@
 import time
 from builtins import list
-
 from absl import app, logging
 import cv2
 import numpy as np
@@ -17,10 +16,12 @@ import os
 from PIL import Image
 from flask_bcrypt import Bcrypt
 import bcrypt
+import time
+from datetime import datetime
 import psycopg2 as psy
 from psycopg2 import Error
-from dbx_droptest import dbx_upload
-from itertools import  groupby
+from dbx_droptest import dbx_crt_folder
+from itertools import groupby
 
 # Define flask app
 app = Flask(__name__, static_url_path='/static')
@@ -28,23 +29,23 @@ app.config['IMG_FOLDER'] = 'static/output/'
 app.config['IMG_RESIZED_RATIO'] = 500
 bcrypt = Bcrypt(app)
 
-#Provisory Params for Psql connection
+# Provisory Params for Psql connection
 host_con = 'ec2-52-0-114-209.compute-1.amazonaws.com'
 port_con = '5432'
 db_con = 'd9iu7pl5ikjcgh'
 user_con = 'rkjkiitazamftd'
 pass_con = 'ba53f6b72bc5f4dd0e2da437f05685416a7512cec11894065885561412448edb'
 
-#Provisory Params for DropBox image storage testing
+# Provisory Params for DropBox image storage testing
 dbox_key = 'sl.A3CqKv2E_owvavhfMoXbcDlr6hTNL-k81lgMAafPHuGkROIfzHjMSx5vWqmomo1jizfP8sQWxmXPx5Lw3Lo1eEjHfIUtpLvGNlkRSLDkgl9BXhNMpwC6tiGDMAveBTXhazNnR5s'
 
 # customize your API through the following parameters
 classes_path = './data/labels/coco.names'
 weights_path = './weights/yolov3.tf'
-tiny = False                    # set to True if using a Yolov3 Tiny model
-size = 416                      # size images are resized to for model
-output_path = './detections/resize/'   # path to output folder where images with detections are saved
-num_classes = 80                # number of classes in model
+tiny = False  # set to True if using a Yolov3 Tiny model
+size = 416  # size images are resized to for model
+output_path = './detections/resize/'  # path to output folder where images with detections are saved
+num_classes = 80  # number of classes in model
 
 # load in weights and classes
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
@@ -64,6 +65,7 @@ print('classes loaded')
 
 # Initialize Flask application
 app = Flask(__name__)
+
 
 # API that returns JSON with classes found in images
 @app.route('/detections', methods=['POST'])
@@ -88,7 +90,7 @@ def get_detections():
         # create list of responses for current image
         responses = []
         raw_img = raw_images[j]
-        num+=1
+        num += 1
         img = tf.expand_dims(raw_img, 0)
         img = transform_images(img, size)
 
@@ -100,11 +102,11 @@ def get_detections():
         print('detections:')
         for i in range(nums[0]):
             print('\t{}, {}, {}'.format(class_names[int(classes[0][i])],
-                                            np.array(scores[0][i]),
-                                            np.array(boxes[0][i])))
+                                        np.array(scores[0][i]),
+                                        np.array(boxes[0][i])))
             responses.append({
                 "class": class_names[int(classes[0][i])],
-                "confidence": float("{0:.2f}".format(np.array(scores[0][i])*100))
+                "confidence": float("{0:.2f}".format(np.array(scores[0][i]) * 100))
             })
         response.append({
             "image": image_names[j],
@@ -115,11 +117,11 @@ def get_detections():
         cv2.imwrite(output_path + 'detection' + str(num) + '.jpg', img)
         print('output saved to: {}'.format(output_path + 'detection' + str(num) + '.jpg'))
 
-    #remove temporary images
+    # remove temporary images
     for name in image_names:
         os.remove(name)
     try:
-        return jsonify({"response":response}), 200
+        return jsonify({"response": response}), 200
     except FileNotFoundError:
         abort(404)
 
@@ -165,16 +167,16 @@ def load_image_into_numpy_array(image):
         (im_height, im_width, 3)).astype(np.uint8)
 
 
-#---------------------------------------------------Pest Id stored Function---------------------------------------------------
+# ---------------------------------------------------Pest Id stored Function---------------------------------------------------
 
 def get_pest_id(name) -> int:
     row = None
     try:
-        connection = psy.connect(host=host_con, port= port_con, database= db_con, user=user_con, password=pass_con)
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
-        cursor.callproc('get_pestId',[name])
+        cursor.callproc('get_pestId', [name])
         row = cursor.fetchone()
-        print("ID de Plaga:", row[0])
+        # print("ID de Plaga:", row[0])
     except Error as error:
         print(error)
     finally:
@@ -182,53 +184,50 @@ def get_pest_id(name) -> int:
         connection.close()
     return int(row[0])
 
-#---------------------------------------------------Save History Header Function---------------------------------------------------
 
-def save_history():
-    #We have to check the size of the sent element into this function -> then store in the DB
+# ---------------------------------------------------Save History Header Function---------------------------------------------------
+
+def save_history(list_partial):
+    # We have to check the size of the sent element into this function -> then store in the DB
     try:
-        list_partial = [{'name': 'cat', 'scores': 0.7610567808151245}, {'name': 'cat', 'scores': 0.7610567808151245},
-                        {'name': 'dog', 'scores': 0.5901315212249756}]
-
-        #latitude, longitude,description,city,history_date,color,iduser,status
         latitude = "-26.5326457"
         longitude = "-57.0399334"
         description = "Infectado"
         city = "San Miguel"
-        his_date= "24-09-21"
+        now = datetime.now()
         color = "#f3435"
         idus = 1
         stat = "Infectado"
 
         connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
-        #float("{:.2f}".format(lp.get('scores')))
 
         for lp in list_partial:
             print("probamos de nuevo:", lp.get('name'))
-            cursor.callproc('save_mul_values', [latitude, longitude, description, city, his_date, color, idus, stat])
-            idhistory = lastrecord()
+            cursor.callproc('save_mul_values',
+                            [latitude, longitude, description, city, now.strftime('%y-%m-%d'), color, idus, stat])
             connection.commit()
-            if len(list_partial) > 0 :
+            if len(list_partial) > 0:
+                idhistory = lastrecord()
+                print("id rescatado:", idhistory)
                 name_onebyone = lp.get('name')
                 save_history_detail(idhistory, name_onebyone)
             else:
                 print("Error al tratar de insertar los datos en la BD")
     except Error as error:
-            print(error)
+        print(error)
     finally:
         cursor.close()
         connection.close()
 
 
-
-#---------------------------------------------------Save History Detail Function---------------------------------------------------
+# ---------------------------------------------------Save History Detail Function---------------------------------------------------
 
 def save_history_detail(idhistory, det_final):
     """-------------------Modified Version---------------------"""
     idpest = get_pest_id(det_final)
     try:
-        connection = psy.connect(host= host_con, port= port_con, database= db_con,  user= user_con, password= pass_con)
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
         cursor.callproc('save_mul_dt', [idhistory, idpest])
         connection.commit()
@@ -239,24 +238,24 @@ def save_history_detail(idhistory, det_final):
         connection.close()
 
 
-#---------------------------------------------------Login Request---------------------------------------------------
+# ---------------------------------------------------Login Request---------------------------------------------------
 
 @app.route('/login', methods=['POST'])
 def login():
     # Check if "username" and "password" POST requests exist (user submitted form)
     if request.method == 'POST':
 
-        #username = request.form.get('username')
-        #password = request.form.get('password')
+        # username = request.form.get('username')
+        # password = request.form.get('password')
         username = request.form['username']
         password = request.form['password']
-        print("usuario",username)
-        print("pass",password)
+        print("usuario", username)
+        print("pass", password)
 
         try:
-            connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
+            connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
             cursor = connection.cursor()
-            cursor.callproc('get_logus',[username])
+            cursor.callproc('get_logus', [username])
             row = cursor.fetchone()
 
             if row:
@@ -293,11 +292,11 @@ def login():
             connection.close()
 
 
-#---------------------------------------------------Get Last Record Function---------------------------------------------------
+# ---------------------------------------------------Get Last Record Function---------------------------------------------------
 
 def lastrecord() -> int:
     try:
-        connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
         cursor.callproc('get_lastId')
         row = cursor.fetchone()
@@ -307,10 +306,10 @@ def lastrecord() -> int:
     finally:
         cursor.close()
         connection.close()
-    return row[0]
+    return int(row[0])
 
 
-#---------------------------------------------------User Record Request---------------------------------------------------
+# ---------------------------------------------------User Record Request---------------------------------------------------
 
 @app.route('/user_register', methods=['POST'])
 def register():
@@ -325,11 +324,10 @@ def register():
 
         encryptpass = bcrypt.generate_password_hash(password).decode('utf-8')
 
-
         try:
-            connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
+            connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
             cursor = connection.cursor()
-            cursor.callproc('check_usrexist',[username])
+            cursor.callproc('check_usrexist', [username])
             account = cursor.fetchone()
             if account:
                 msgexist = "Ya existe este Usuario!"
@@ -352,7 +350,7 @@ def register():
             connection.close()
 
 
-#---------------------------------------------------Update User Record Request---------------------------------------------------
+# ---------------------------------------------------Update User Record Request---------------------------------------------------
 
 @app.route('/updt_user', methods=['POST'])
 def updt_user_info():
@@ -363,13 +361,13 @@ def updt_user_info():
         usr_pass = request.form['password']
         usr_name = request.form['name']
         usr_last = request.form['lastname']
-        usr_tel= request.form['telephone']
+        usr_tel = request.form['telephone']
         usr_ident = request.form['identification']
 
         encryptpass = bcrypt.generate_password_hash(usr_pass).decode('utf-8')
 
         try:
-            connection = psy.connect(host= host_con, port= port_con ,database=db_con, user=user_con , password=pass_con)
+            connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
             cursor = connection.cursor()
             cursor.callproc('update_usr', [usr_mail, encryptpass, usr_name, usr_last, usr_tel, usr_ident, usr_id])
             connection.commit()
@@ -386,18 +384,18 @@ def updt_user_info():
             connection.close()
 
 
-#---------------------------------------------------List User Request---------------------------------------------------
+# ---------------------------------------------------List User Request---------------------------------------------------
 
 @app.route('/list_user', methods=['GET'])
 def list_user_info():
     # Check if "username" and "password" POST requests exist (user submitted form)
     if request.method == 'GET':
 
-        #userid = request.form['id_user']
+        # userid = request.form['id_user']
         userid = request.form.get('id_user')
 
         try:
-            connection = psy.connect(host= host_con, port= port_con ,database= db_con, user= user_con, password= pass_con)
+            connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
             cursor = connection.cursor()
 
             # -> Replaced cursor Query for store procedure to improve security at moment fo bringing datas
@@ -407,10 +405,10 @@ def list_user_info():
             user_mail = row[0]
             user_name = row[1]
             user_last = row[2]
-            user_tel =  row[3]
+            user_tel = row[3]
             user_ident = row[4]
 
-            return jsonify(mail=user_mail, name=user_name, lastn=user_last, telephone= user_tel, ident= user_ident)
+            return jsonify(mail=user_mail, name=user_name, lastn=user_last, telephone=user_tel, ident=user_ident)
 
         except Error as error:
             print(error)
@@ -419,18 +417,19 @@ def list_user_info():
             connection.close()
 
 
-#---------------------------------------------------List User Monitorin Position Function---------------------------------------------------
+# ---------------------------------------------------List User Monitorin Position Function---------------------------------------------------
 
 def get_user_position(date):
     markers = list()
     try:
-        connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
-        cursor.callproc('get_monitlist',[date])
+        cursor.callproc('get_monitlist', [date])
         datas = cursor.fetchall()
 
         for r in datas:
-            marker_dict = dict(city= str(r[0]), date= str(r[1]), latitude= str(r[2]), longitude= str(r[3]), people= str(r[4]), plague= str(r[5]))
+            marker_dict = dict(city=str(r[0]), date=str(r[1]), latitude=str(r[2]), longitude=str(r[3]),
+                               people=str(r[4]), plague=str(r[5]))
             markers.append(marker_dict)
 
     except Error as error:
@@ -442,19 +441,19 @@ def get_user_position(date):
     return markers
 
 
-#---------------------------------------------------List User Hisotiry Function---------------------------------------------------
+# ---------------------------------------------------List User Hisotiry Function---------------------------------------------------
 
 def get_position(date, usu):
-    markers= list()
+    markers = list()
     try:
-        connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
-        cursor.callproc('get_usrhist',[date, usu])
+        cursor.callproc('get_usrhist', [date, usu])
         datas = cursor.fetchall()
 
         for r in datas:
-           marker_dict = dict(latitude=str(r[0]), longitude =str(r[1]), plague= str(r[2]), city= str(r[3]), id= int(r[4]))
-           markers.append(marker_dict)
+            marker_dict = dict(latitude=str(r[0]), longitude=str(r[1]), plague=str(r[2]), city=str(r[3]), id=int(r[4]))
+            markers.append(marker_dict)
 
     except Error as error:
         print(error)
@@ -466,7 +465,7 @@ def get_position(date, usu):
     return markers
 
 
-#---------------------------------------------------List Pest Life Cycle Function---------------------------------------------------
+# ---------------------------------------------------List Pest Life Cycle Function---------------------------------------------------
 
 def get_life_cycle(pest_values):
     life_cycle = list()
@@ -474,16 +473,16 @@ def get_life_cycle(pest_values):
     print("size of chain:", chain_received)
 
     try:
-        connection = psy.connect(host= host_con, port= port_con, database= db_con, user= user_con, password= pass_con)
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
 
-        if(chain_received > 1):
+        if (chain_received > 1):
             print("There's more than one object...")
             my_list = pest_values.split(",")
             # removing any kind of duplicates pest values in the lists with set() function
-            lista= list(set(my_list))
+            lista = list(set(my_list))
             print(my_list)
-            cursor.callproc('get_mlifecycl',[lista])
+            cursor.callproc('get_mlifecycl', [lista])
 
         elif (chain_received == 1):
             print("There's only one object...")
@@ -491,7 +490,7 @@ def get_life_cycle(pest_values):
         datas = cursor.fetchall()
 
         for r in datas:
-            row= dict(name= str(r[0]), life_cycle= str(r[1]), population= str(r[2]))
+            row = dict(name=str(r[0]), life_cycle=str(r[1]), population=str(r[2]))
             life_cycle.append(row)
 
     except Error as error:
@@ -503,10 +502,9 @@ def get_life_cycle(pest_values):
     return life_cycle
 
 
-#---------------------------------------------------Image Prediction Function---------------------------------------------------
+# ---------------------------------------------------Image Prediction Function---------------------------------------------------
 
-def predict_image(request_image,image_name):
-
+def predict_image(request_image, image_name):
     print(image_name)
     # we made a resize and crop of the image to make a quick and proper detection
     output_img = Image.open(crop_img(request_image, image_name))
@@ -531,23 +529,22 @@ def predict_image(request_image,image_name):
     lista_predfinal = []
 
     print('detections:')
-    #loop to remove trash prediction values
+    # loop to remove trash prediction values
     for i in range(nums[0]):
-        pred_ardict= dict(name=str(class_names[int(classes[0][i])]), scores= float( np.array(scores[0][i])  ) )
+        pred_ardict = dict(name=str(class_names[int(classes[0][i])]), scores=float(np.array(scores[0][i])))
         lista_pred.append(pred_ardict)
 
     for key, group in groupby(lista_pred, lambda x: x["name"]):
         max_y = 0
         for res in group:
             max_y = max(max_y, res["scores"])
-        lista_predfinal.append({"x":key,"y":max_y})
-    save_history()
-    print('deployable list results to DB:',lista_predfinal)
+        lista_predfinal.append({"name": key, "scores": max_y})
+    save_history(lista_predfinal)
 
+    print('deployable list results to DB:', lista_predfinal)
 
-
-    #test = dict((k, v) for k, v in res.items() if v >= 5)
-    #print(test)
+    # test = dict((k, v) for k, v in res.items() if v >= 5)
+    # print(test)
 
     img = cv2.cvtColor(img_raw.numpy(), cv2.COLOR_RGB2BGR)
     img = draw_outputs(img, (boxes, scores, classes, nums), class_names)
@@ -563,30 +560,31 @@ def predict_image(request_image,image_name):
     os.remove(output_path + image_name)
     return response
 
-#---------------------------------------------------Image Post Request---------------------------------------------------
 
-@app.route('/image', methods= ['POST'])
+# ---------------------------------------------------Image Post Request---------------------------------------------------
+
+@app.route('/image', methods=['POST'])
 def get_image():
     image = request.files["images"]
     image_name = image.filename
     if image_name.endswith('.png'):
         image.save(output_path + image_name)
 
-        im = Image.open(output_path+ image_name)
+        im = Image.open(output_path + image_name)
         rgb_im = im.convert('RGB')
         last = image_name[:4]
         nuevo = last + ".jpg"
         rgb_im.save(output_path + nuevo)
 
-        os.remove(output_path+image_name)
+        os.remove(output_path + image_name)
 
         requ = Image.open(output_path + nuevo)
         lt = nuevo
-        df= predict_image(requ,lt)
+        df = predict_image(requ, lt)
 
     else:
         request_image = Image.open(image)
-        df= predict_image(request_image,image_name)
+        df = predict_image(request_image, image_name)
 
     try:
         return Response(response=df, status=200, mimetype='image/png')
@@ -599,8 +597,7 @@ def monitoring_listmap():
     if request.method == 'GET':
         print("Listing Monitored Users...")
         date = request.form.get('date')
-        return jsonify( get_user_position(date))
-
+        return jsonify(get_user_position(date))
 
 
 @app.route('/list_map', methods=['GET'])
@@ -609,21 +606,25 @@ def pest_listmap():
         print("Listing User History....")
         date = request.form.get('date')
         usu = request.form.get('user')
-        return jsonify(get_position(date,usu) )
-
+        return jsonify(get_position(date, usu))
 
 
 @app.route('/uplad_file', methods=['POST'])
 def upl_file_dbx():
     if request.method == 'POST':
-        print("Preparing upload file....")
+        usr_bdir = request.form['usrbdir']
+        print(usr_bdir)
+
+        return jsonify(dbx_crt_folder(usr_bdir))
+
+        """print("Preparing upload file....")
         up_file = request.files['image']
         image_name = up_file.filename
         sec_file = secure_filename(image_name)
-        dbx_upload(up_file.read(),sec_file)
-        return jsonify("hola")
+        dbx_upload(up_file.read(), sec_file)
+        return jsonify("hola")"""
 
 
 # Run server
 if __name__ == '__main__':
-    app.run(host="127.0.0.1",port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=True)
