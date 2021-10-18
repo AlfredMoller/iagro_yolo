@@ -617,12 +617,12 @@ def upl_file_dbx():
 
         return jsonify(dbx_crt_folder(usr_bdir))
 
-        """print("Preparing upload file....")
+        print("Preparing upload file....")
         up_file = request.files['image']
         image_name = up_file.filename
         sec_file = secure_filename(image_name)
         dbx_upload(up_file.read(), sec_file)
-        return jsonify("hola")"""
+        return jsonify("hola")
 
 
 # Run server
