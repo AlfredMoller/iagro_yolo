@@ -1,8 +1,11 @@
-import sys
+import os
 import dropbox
 from dropbox.exceptions import ApiError, AuthError
+from dotenv import  load_dotenv
 
-dbox_key = '2aPXeDN95_sAAAAAAAAAAcP47wmRizJ1bHJheJHrJJ_dwVOefc3W7lxgL0MbJPGe'
+
+load_dotenv()
+dbox_key = os.getenv("dbox_key")
 dbx = dropbox.Dropbox(dbox_key)
 dropbox_bdir = '/test_dropbox3/'
 
@@ -28,7 +31,7 @@ def dbx_crt_folder(name_dir):
         if name_dir in list(valid_folder_ext):
             return {"status":303, "msg" : "El repositorio existe...Intentelo con otro nombre!"}
         else:
-            dbx.files_create_folder_v2("/" + name_dir)
+            #dbx.files_create_folder_v2("/" + name_dir)
             return {"status": 200, "msg": "El repositorio fue creado exitosamente!"}
     except ApiError as err:
         print(err)
