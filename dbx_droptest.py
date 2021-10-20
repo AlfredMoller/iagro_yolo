@@ -61,9 +61,9 @@ def chk_lclmachine(fold_pth):
             os.chdir(cur_path)
             for sub_folder in ['aracnido_rojo', 'pulgon', 'mosca_blanca']:
                 os.mkdir(sub_folder)
-            return {"status": 303, "msg": "El repositorio local, fue creado exitosamente!"}
+            return {"status": 200, "msg": "El repositorio local, fue creado exitosamente!"}
         else:
 
-            return {"status": 303, "msg": f"El repo con nombre {fol_path} existe...Intentelo de nuevo!"}
+            return {"status": 303, "msg": f"El repo con nombre {fold_pth} existe...Intentelo de nuevo!"}
     except OSError as oserr:
         print("Error al crear el repositorio:", oserr)
