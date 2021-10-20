@@ -22,22 +22,24 @@ import psycopg2 as psy
 from psycopg2 import Error
 from dbx_droptest import dbx_crt_folder
 from itertools import groupby
+from dotenv import load_dotenv
 
 # Define flask app
 app = Flask(__name__, static_url_path='/static')
 app.config['IMG_FOLDER'] = 'static/output/'
 app.config['IMG_RESIZED_RATIO'] = 500
 bcrypt = Bcrypt(app)
+load_dotenv()
 
-# Provisory Params for Psql connection
-host_con = 'ec2-52-0-114-209.compute-1.amazonaws.com'
-port_con = '5432'
-db_con = 'd9iu7pl5ikjcgh'
-user_con = 'rkjkiitazamftd'
-pass_con = 'ba53f6b72bc5f4dd0e2da437f05685416a7512cec11894065885561412448edb'
+#Params for Psql connection
+host_con = os.getenv("host_con")
+port_con = os.getenv("port_con")
+db_con = os.getenv("db_con")
+user_con = os.getenv("user_con")
+pass_con = os.getenv("pass_con")
 
-# Provisory Params for DropBox image storage testing
-dbox_key = 'sl.A3CqKv2E_owvavhfMoXbcDlr6hTNL-k81lgMAafPHuGkROIfzHjMSx5vWqmomo1jizfP8sQWxmXPx5Lw3Lo1eEjHfIUtpLvGNlkRSLDkgl9BXhNMpwC6tiGDMAveBTXhazNnR5s'
+#Params for DropBox image storage testing
+dbox_key = os.getenv("dbox_key2")
 
 # customize your API through the following parameters
 classes_path = './data/labels/coco.names'
@@ -553,6 +555,7 @@ def upl_file_dbx():
     if request.method == 'POST':
         usr_bdir = request.form['usrbdir']
         return jsonify(dbx_crt_folder(usr_bdir))
+
         """
         print("Preparing upload file....")
         up_file = request.files['image']
