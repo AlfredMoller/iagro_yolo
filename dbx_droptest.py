@@ -1,7 +1,6 @@
 import os
 import dropbox
-from dropbox.exceptions import ApiError, AuthError
-from itertools import filterfalse, repeat
+from dropbox.exceptions import ApiError
 from dotenv import load_dotenv
 
 load_dotenv()
