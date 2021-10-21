@@ -17,17 +17,19 @@ from PIL import Image
 from flask_bcrypt import Bcrypt
 import bcrypt
 import time
-from datetime import datetime
 import psycopg2 as psy
 from psycopg2 import Error
-from dbx_droptest import dbx_crt_folder
 from itertools import groupby
 from dotenv import load_dotenv
+from dbx_droptest import *
+from det_authenticator import *
+
 
 # Define flask app
 app = Flask(__name__, static_url_path='/static')
 app.config['IMG_FOLDER'] = 'static/output/'
 app.config['IMG_RESIZED_RATIO'] = 500
+app.config['SECRET_KEY'] = os.getenv("app_key")
 bcrypt = Bcrypt(app)
 load_dotenv()
 
@@ -66,9 +68,9 @@ class_names = [c.strip() for c in open(classes_path).readlines()]
 print('classes loaded')
 
 # Initialize Flask application
-app = Flask(__name__)
 app.config['IMG_FOLDER'] = './detections/resize/'
 app.config['IMG_RESIZED_RATIO'] = 500
+
 
 
 # Function to img crop
@@ -186,10 +188,8 @@ def login():
     # Check if "username" and "password" POST requests exist (user submitted form)
     if request.method == 'POST':
 
-        # username = request.form.get('username')
-        # password = request.form.get('password')
-        username = request.form['username']
-        password = request.form['password']
+        username = request.authorization.username
+        password = request.authorization.password
         print("usuario", username)
         print("pass", password)
 
@@ -200,31 +200,23 @@ def login():
             row = cursor.fetchone()
 
             if row:
-                msgkey = "Usuario Logeado"
                 print(row[0])
                 nombre = row[1]
                 apellido = row[2]
                 id_usu = row[3]
                 nombcompleto = nombre + " " + apellido
 
-                #   if bcrypt.check_password_hash(row[0],password) ==True:
+                # if bcrypt.check_password_hash(row[0],password) ==True:
                 if bcrypt.check_password_hash(row[0], password):
+                    auth_token = auth_builder(password, app.config['SECRET_KEY'])
 
-                    print(msgkey)
-                    msgok = "Usuario Logeado!"
-                    return jsonify(message=msgok, nomb_usu=nombcompleto, id_usu=id_usu)
+                    return jsonify(status= 200, msg="Usuario Logeado!", nomb_usu=nombcompleto, id_usu=id_usu, token= auth_token)
 
                 elif not bcrypt.check_password_hash(row[0], password):
-
-                    msgfail = "Usuario con Contraseña Incorrecta!"
-                    print(msgfail)
-                    return jsonify(message=msgfail, nomb_usu="", id_usu="")
+                    return jsonify(status= 403, msg= "Usuario con Contraseña Incorrecta!", nomb_usu="", id_usu="")
 
             else:
-
-                msgfail = "Usuario no se Encuentra Registrado!"
-                print(msgfail)
-                return jsonify(message=msgfail, nomb_usu="", id_usu="")
+                return jsonify(status= 404, msg= "Usuario no se Encuentra Registrado!", nomb_usu="", id_usu="")
 
         except Error as error:
             print(error)
@@ -554,7 +546,7 @@ def pest_listmap():
 def upl_file_dbx():
     if request.method == 'POST':
         usr_bdir = request.form['usrbdir']
-        return jsonify(dbx_crt_folder(usr_bdir))
+        return jsonify(chk_lclmachine(usr_bdir))
 
         """
         print("Preparing upload file....")
@@ -563,6 +555,8 @@ def upl_file_dbx():
         sec_file = secure_filename(image_name)
         dbx_upload(up_file.read(), sec_file)
         return jsonify("hola")"""
+
+
 
 
 # Run server
