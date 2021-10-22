@@ -23,6 +23,7 @@ from itertools import groupby
 from dotenv import load_dotenv
 from dbx_droptest import *
 from det_authenticator import *
+from flask_limiter import Limiter
 
 
 # Define flask app
@@ -31,6 +32,7 @@ app.config['IMG_FOLDER'] = 'static/output/'
 app.config['IMG_RESIZED_RATIO'] = 500
 app.config['SECRET_KEY'] = os.getenv("app_key")
 bcrypt = Bcrypt(app)
+limiter = Limiter(app)
 load_dotenv()
 
 #Params for Psql connection
@@ -183,6 +185,7 @@ def save_history_detail(idhistory, det_final):
 
 # ---------------------------------------------------Login Request---------------------------------------------------
 
+@limiter.limit("2 per day", key_func = lambda : request.authorization.username)
 @app.route('/login', methods=['POST'])
 def login():
     # Check if "username" and "password" POST requests exist (user submitted form)
@@ -200,12 +203,13 @@ def login():
             row = cursor.fetchone()
 
             if row:
+
                 print(row[0])
                 nombre = row[1]
                 apellido = row[2]
                 id_usu = row[3]
                 nombcompleto = nombre + " " + apellido
-
+                count = 3
                 # if bcrypt.check_password_hash(row[0],password) ==True:
                 if bcrypt.check_password_hash(row[0], password):
                     auth_token = auth_builder(password, app.config['SECRET_KEY'])
@@ -213,10 +217,12 @@ def login():
                     return jsonify(status= 200, msg="Usuario Logeado!", nomb_usu=nombcompleto, id_usu=id_usu, token= auth_token)
 
                 elif not bcrypt.check_password_hash(row[0], password):
+
                     return jsonify(status= 403, msg= "Usuario con Contraseña Incorrecta!", nomb_usu="", id_usu="")
 
             else:
-                return jsonify(status= 404, msg= "Usuario no se Encuentra Registrado!", nomb_usu="", id_usu="")
+
+                return jsonify(status= 404, msg= "Usuario no se Encuentra Registrado!", nomb_usu="", id_usu= "")
 
         except Error as error:
             print(error)
@@ -542,10 +548,25 @@ def pest_listmap():
         return jsonify(get_position(date, usu))
 
 
+from multiprocessing import Value
+counter = Value('i', 0)
+
+@limiter.limit("2 per day", key_func = lambda : request.authorization.username)
 @app.route('/uplad_file', methods=['POST'])
 def upl_file_dbx():
+    lista = []
     if request.method == 'POST':
-        usr_bdir = request.form['usrbdir']
+        usr_bdir = request.authorization.username
+
+        with counter.get_lock():
+            if not usr_bdir == "moller":
+                counter.value += 1
+                out = counter.value
+                print(out)
+            else:
+                counter.value = 1
+                out = counter.value
+                print(out)
         return jsonify(chk_lclmachine(usr_bdir))
 
         """
