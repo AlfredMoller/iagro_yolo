@@ -185,7 +185,6 @@ def save_history_detail(idhistory, det_final):
 
 # ---------------------------------------------------Login Request---------------------------------------------------
 
-@limiter.limit("2 per day", key_func = lambda : request.authorization.username)
 @app.route('/login', methods=['POST'])
 def login():
     # Check if "username" and "password" POST requests exist (user submitted form)
@@ -548,25 +547,41 @@ def pest_listmap():
         return jsonify(get_position(date, usu))
 
 
-from multiprocessing import Value
-counter = Value('i', 0)
 
-@limiter.limit("2 per day", key_func = lambda : request.authorization.username)
+#@limiter.limit("3 per minute", key_func = lambda : check_user(request.form['username']) != True and request.form['ipadress'])
 @app.route('/uplad_file', methods=['POST'])
 def upl_file_dbx():
-    lista = []
     if request.method == 'POST':
-        usr_bdir = request.authorization.username
+        #usr_bdir = request.authorization.username
+        usr_bdir = request.form['username']
 
         with counter.get_lock():
+            if not usr_bdir == "almoller563@gmail.com":
+                status = False
+                count_f = count_status(status)
+                p1 = count_fail(count_f)
+                print(p1.get_x())
+                if p1.get_x() == 3:
+                    return {"msg":"Procederemos a darle una penalizacion de 3 minutos!"}
+                    #Almacenado en la Base de Datos, la penalizacion del usuario
+                else:
+                    return {"msg": "Procederemos a darle una penalizacion de 3 minutos!"}
+
+            else:
+                status = True
+                count_s = count_status(status)
+                p2 = count_fail(count_s)
+                print(p2.get_x())
+            """
             if not usr_bdir == "moller":
-                counter.value += 1
-                out = counter.value
-                print(out)
+                status = False
+                ret_values1(status)
+                print(ret_values2())
             else:
                 counter.value = 1
                 out = counter.value
-                print(out)
+                print(out)"""
+
         return jsonify(chk_lclmachine(usr_bdir))
 
         """
@@ -576,8 +591,6 @@ def upl_file_dbx():
         sec_file = secure_filename(image_name)
         dbx_upload(up_file.read(), sec_file)
         return jsonify("hola")"""
-
-
 
 
 # Run server
