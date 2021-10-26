@@ -32,7 +32,7 @@ app.config['IMG_FOLDER'] = 'static/output/'
 app.config['IMG_RESIZED_RATIO'] = 500
 app.config['SECRET_KEY'] = os.getenv("app_key")
 bcrypt = Bcrypt(app)
-limiter = Limiter(app)
+#limiter = Limiter(app)
 load_dotenv()
 
 #Params for Psql connection
@@ -190,38 +190,57 @@ def login():
     # Check if "username" and "password" POST requests exist (user submitted form)
     if request.method == 'POST':
 
-        username = request.authorization.username
-        password = request.authorization.password
-        print("usuario", username)
-        print("pass", password)
+        usr_name = request.form['username']
+        usr_pass = request.form['password']
+        usr_ip = request.form['ipadress']
 
         try:
             connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
             cursor = connection.cursor()
-            cursor.callproc('get_logus', [username])
+            cursor.callproc('get_logus', [usr_name])
             row = cursor.fetchone()
+           # if chk_ipornode(usr_ip) == False:
+            if chk_user_penalty(usr_ip, connection) != True:
+                if row:
+                    # with counter.get_lock():
+                    nombcompleto = " ".join([row[1],row[2]])
+                    id_usu = row[3]
 
-            if row:
+                    if bcrypt.check_password_hash(row[0], usr_pass):
+                        auth_token = auth_builder(usr_pass, app.config['SECRET_KEY'])
+                        """" status = True
+                        count_s = count_status(status)
+                        p2 = count_fail(count_s)
+                        print(p2.get_x())"""
+                        return jsonify(status=200, msg="Usuario Logeado!", nomb_usu=nombcompleto, id_usu=id_usu,
+                                       token=auth_token)
 
-                print(row[0])
-                nombre = row[1]
-                apellido = row[2]
-                id_usu = row[3]
-                nombcompleto = nombre + " " + apellido
-                count = 3
-                # if bcrypt.check_password_hash(row[0],password) ==True:
-                if bcrypt.check_password_hash(row[0], password):
-                    auth_token = auth_builder(password, app.config['SECRET_KEY'])
-
-                    return jsonify(status= 200, msg="Usuario Logeado!", nomb_usu=nombcompleto, id_usu=id_usu, token= auth_token)
-
-                elif not bcrypt.check_password_hash(row[0], password):
-
-                    return jsonify(status= 403, msg= "Usuario con Contraseña Incorrecta!", nomb_usu="", id_usu="")
-
+                    elif not bcrypt.check_password_hash(row[0], usr_pass):
+                        status = False
+                        count_f = count_status(status)
+                        p1 = count_fail(count_f)
+                        print(p1.get_pnlt_time())
+                        if p1.get_pnlt_time() == 3:
+                            date_penalty = datetime.now()
+                            sv_user_penalty(usr_ip, date_penalty, connection)
+                            return {"status": 403, "msg": "Procederemos a darle una penalizacion de 3 minutos!"}
+                            # Almacenado en la Base de Datos, la penalizacion del usuario
+                        else:
+                            return {"status": 401, "msg": "Usuario o clave incorrecta...Intentelo de nuevo!"}
+                else:
+                    status = False
+                    count_f = count_status(status)
+                    p1 = count_fail(count_f)
+                    print(p1.get_pnlt_time())
+                    if p1.get_pnlt_time() == 3:
+                        date_penalty = datetime.now()
+                        sv_user_penalty(usr_ip, date_penalty, connection)
+                        return {"status": 403, "msg": "Procederemos a darle una penalizacion de 3 minutos!"}
+                        # Almacenado en la Base de Datos, la penalizacion del usuario
+                    else:
+                        return {"status": 404, "msg": "Usuario no se Encuentra Registrado!"}
             else:
-
-                return jsonify(status= 404, msg= "Usuario no se Encuentra Registrado!", nomb_usu="", id_usu= "")
+                return {"status": 403, "msg": "Usted se encuentra con una penalizacion temporal!"}
 
         except Error as error:
             print(error)
@@ -552,38 +571,6 @@ def pest_listmap():
 @app.route('/uplad_file', methods=['POST'])
 def upl_file_dbx():
     if request.method == 'POST':
-        #usr_bdir = request.authorization.username
-        usr_bdir = request.form['username']
-
-        with counter.get_lock():
-            if not usr_bdir == "almoller563@gmail.com":
-                status = False
-                count_f = count_status(status)
-                p1 = count_fail(count_f)
-                print(p1.get_x())
-                if p1.get_x() == 3:
-                    return {"msg":"Procederemos a darle una penalizacion de 3 minutos!"}
-                    #Almacenado en la Base de Datos, la penalizacion del usuario
-                else:
-                    return {"msg": "Procederemos a darle una penalizacion de 3 minutos!"}
-
-            else:
-                status = True
-                count_s = count_status(status)
-                p2 = count_fail(count_s)
-                print(p2.get_x())
-            """
-            if not usr_bdir == "moller":
-                status = False
-                ret_values1(status)
-                print(ret_values2())
-            else:
-                counter.value = 1
-                out = counter.value
-                print(out)"""
-
-        return jsonify(chk_lclmachine(usr_bdir))
-
         """
         print("Preparing upload file....")
         up_file = request.files['image']
