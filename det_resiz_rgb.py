@@ -208,10 +208,11 @@ def login():
 
                     if bcrypt.check_password_hash(row[0], usr_pass):
                         auth_token = auth_builder(usr_pass, app.config['SECRET_KEY'])
-                        """" status = True
+                        status = True
                         count_s = count_status(status)
                         p2 = count_fail(count_s)
-                        print(p2.get_x())"""
+                        print(p2.get_x())
+                        #if current logged device is not the same as store previously -> Send message with bot
                         return jsonify(status=200, msg="Usuario Logeado!", nomb_usu=nombcompleto, id_usu=id_usu,
                                        token=auth_token)
 
@@ -223,10 +224,10 @@ def login():
                         if p1.get_pnlt_time() == 3:
                             date_penalty = datetime.now()
                             sv_user_penalty(usr_ip, date_penalty, connection)
-                            return {"status": 403, "msg": "Procederemos a darle una penalizacion de 3 minutos!"}
+                            return jsonify(status=403, msg="Procederemos a darle una penalizacion de 3 minutos")
                             # Almacenado en la Base de Datos, la penalizacion del usuario
                         else:
-                            return {"status": 401, "msg": "Usuario o clave incorrecta...Intentelo de nuevo!"}
+                            return jsonify(status=401, msg="Usuario o clave incorrecta...Intentelo de nuevo!")
                 else:
                     status = False
                     count_f = count_status(status)
@@ -235,12 +236,11 @@ def login():
                     if p1.get_pnlt_time() == 3:
                         date_penalty = datetime.now()
                         sv_user_penalty(usr_ip, date_penalty, connection)
-                        return {"status": 403, "msg": "Procederemos a darle una penalizacion de 3 minutos!"}
-                        # Almacenado en la Base de Datos, la penalizacion del usuario
+                        return jsonify(status= 403, msg="Procederemos a darle una penalizacion de 3 minutos!  ‾＼_(ツ)_／‾")
                     else:
-                        return {"status": 404, "msg": "Usuario no se Encuentra Registrado!"}
+                        return jsonify(status=404, msg="Usuario no se encuentra Registrado!")
             else:
-                return {"status": 403, "msg": "Usted se encuentra con una penalizacion temporal!"}
+                return jsonify(status=403, msg="Usted se encuentra con una penalizacion temporal!")
 
         except Error as error:
             print(error)
