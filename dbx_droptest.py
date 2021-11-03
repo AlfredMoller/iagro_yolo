@@ -2,6 +2,9 @@ import os
 import dropbox
 from dropbox.exceptions import ApiError
 from dotenv import load_dotenv
+import jwt
+
+
 
 load_dotenv()
 dbox_key = os.getenv("dbox_key1")
@@ -29,7 +32,7 @@ def dbx_crt_folder(name_dir):
     try:
         valid_folder_ext = filter(check_ext, dbox_metadata())
         if name_dir in list(valid_folder_ext):
-            return {"status": 303, "msg": f"El repo con nombre {name_dir} xiste...Intentelo con otro nombre!"}
+            return {"status": 303, "msg": f"El repo con nombre {name_dir} existe...Intentelo con otro nombre!"}
         else:
             dbx.files_create_folder_v2("/" + name_dir)
             return {"status": 200, "msg": "El repositorio fue creado exitosamente!"}
@@ -51,19 +54,25 @@ def dbx_upload(filestr, f_name):
 
 
 # ---------------------------------------- Current machine file uploader ----------------------------------------
-
+#Check if directory and subdirectories was created in local machine
 def chk_lclmachine(fold_pth):
     try:
         dir_name = os.path.join(os.path.dirname(__file__), "static")
         cur_path = os.path.join(dir_name, fold_pth)
+        user = "moller"
+        password = "123"
         if not os.path.exists(cur_path):
-            os.mkdir(cur_path)
-            os.chdir(cur_path)
-            for sub_folder in ['aracnido_rojo', 'pulgon', 'mosca_blanca']:
-                os.mkdir(sub_folder)
-            return {"status": 200, "msg": "El repositorio local, fue creado exitosamente!"}
+               # os.mkdir(cur_path)
+                #os.chdir(cur_path)
+                for sub_folder in ['aracnido_rojo', 'pulgon', 'mosca_blanca']:
+                    #os.mkdir(sub_folder)
+                    print(sub_folder)
+                return {"status": 200, "msg": "El repositorio local, fue creado exitosamente!"}
         else:
 
             return {"status": 303, "msg": f"El repo con nombre {fold_pth} existe...Intentelo de nuevo!"}
     except OSError as oserr:
         print("Error al crear el repositorio:", oserr)
+
+
+
