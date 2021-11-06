@@ -5,14 +5,12 @@ import cv2
 import numpy as np
 import tensorflow as tf
 from werkzeug.utils import secure_filename
-
 from yolov3_tf2.models import (
     YoloV3, YoloV3Tiny
 )
 from yolov3_tf2.dataset import transform_images, load_tfrecord_dataset
 from yolov3_tf2.utils import draw_outputs
 from flask import Flask, request, Response, jsonify, send_from_directory, abort
-import os
 from PIL import Image
 from flask_bcrypt import Bcrypt
 import bcrypt
@@ -24,6 +22,7 @@ from dotenv import load_dotenv
 from dbx_droptest import *
 from det_authenticator import *
 from flask_limiter import Limiter
+import uuid
 
 
 # Define flask app
@@ -199,19 +198,21 @@ def login():
             cursor = connection.cursor()
             cursor.callproc('get_logus', [usr_name])
             row = cursor.fetchone()
-           # if chk_ipornode(usr_ip) == False:
+            #chkd_ipnde= chk_ipornode_one(usr_ip)
+           # if chkd_ipnde.get("status") == True:
             if chk_user_penalty(usr_ip, connection) != True:
                 if row:
                     # with counter.get_lock():
                     nombcompleto = " ".join([row[1],row[2]])
-                    id_usu = row[3]
+                    uui_usr = row[2]
+                    id_usu = row[4]
 
                     if bcrypt.check_password_hash(row[0], usr_pass):
-                        auth_token = auth_builder(usr_pass, app.config['SECRET_KEY'])
+                        auth_token = auth_builder(uui_usr)
                         status = True
                         count_s = count_status(status)
-                        p2 = count_fail(count_s)
-                        print(p2.get_x())
+                        p1 = count_fail(count_s)
+                        print(p1.get_pnlt_time())
                         #if current logged device is not the same as store previously -> Send message with bot
                         return jsonify(status=200, msg="Usuario Logeado!", nomb_usu=nombcompleto, id_usu=id_usu,
                                        token=auth_token)
@@ -269,6 +270,7 @@ def lastrecord() -> int:
 # ---------------------------------------------------User Record Request---------------------------------------------------
 
 @app.route('/user_register', methods=['POST'])
+@req_token
 def register():
     if request.method == 'POST':
 
@@ -278,8 +280,10 @@ def register():
         lastname = request.form['ape']
         telephone = request.form['tel']
         identif = request.form['ced']
+        user_uuid = str(uuid.uuid4())
 
         encryptpass = bcrypt.generate_password_hash(password).decode('utf-8')
+        auth_token = auth_builder(user_uuid)
 
         try:
             connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
@@ -292,11 +296,11 @@ def register():
                 return jsonify(message=msgexist)
 
             else:
-                cursor.callproc('insert_newusr', [username, encryptpass, name, lastname, telephone, identif])
+                cursor.callproc('insert_newusr', [username, encryptpass, name, lastname, telephone, identif, user_uuid])
                 connection.commit()
                 msgok = "Usuario registrado con Éxito!"
                 print(msgok)
-                return jsonify(message=msgok)
+                return jsonify(message=msgok, token= auth_token)
 
         except Error as error:
             print(error)
@@ -571,6 +575,9 @@ def pest_listmap():
 @app.route('/uplad_file', methods=['POST'])
 def upl_file_dbx():
     if request.method == 'POST':
+        ip = request.form['hola']
+        #valor_final = json.dumps(chk_ipornode_one(ip),ensure_ascii=False)
+        return jsonify(value=chk_ipornode_one(ip),uuid= str(uuid.uuid4()))
         """
         print("Preparing upload file....")
         up_file = request.files['image']
@@ -578,6 +585,7 @@ def upl_file_dbx():
         sec_file = secure_filename(image_name)
         dbx_upload(up_file.read(), sec_file)
         return jsonify("hola")"""
+
 
 
 # Run server
