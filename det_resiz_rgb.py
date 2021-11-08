@@ -204,7 +204,7 @@ def login():
                 if row:
                     # with counter.get_lock():
                     nombcompleto = " ".join([row[1],row[2]])
-                    uui_usr = row[2]
+                    uui_usr = row[3]
                     id_usu = row[4]
 
                     if bcrypt.check_password_hash(row[0], usr_pass):
@@ -270,7 +270,6 @@ def lastrecord() -> int:
 # ---------------------------------------------------User Record Request---------------------------------------------------
 
 @app.route('/user_register', methods=['POST'])
-@req_token
 def register():
     if request.method == 'POST':
 
@@ -283,7 +282,6 @@ def register():
         user_uuid = str(uuid.uuid4())
 
         encryptpass = bcrypt.generate_password_hash(password).decode('utf-8')
-        auth_token = auth_builder(user_uuid)
 
         try:
             connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
@@ -300,7 +298,7 @@ def register():
                 connection.commit()
                 msgok = "Usuario registrado con Éxito!"
                 print(msgok)
-                return jsonify(message=msgok, token= auth_token)
+                return jsonify(message=msgok)
 
         except Error as error:
             print(error)
@@ -324,13 +322,14 @@ def updt_user_info():
         usr_last = request.form['lastname']
         usr_tel = request.form['telephone']
         usr_ident = request.form['identification']
+        user_uuid = str(uuid.uuid4())
 
         encryptpass = bcrypt.generate_password_hash(usr_pass).decode('utf-8')
 
         try:
             connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
             cursor = connection.cursor()
-            cursor.callproc('update_usr', [usr_mail, encryptpass, usr_name, usr_last, usr_tel, usr_ident, usr_id])
+            cursor.callproc('update_usr', [usr_mail, encryptpass, usr_name, usr_last, usr_tel, usr_ident, usr_id, user_uuid])
             connection.commit()
             msgok = "Perfil de Usuario Actualizado!!!"
             print(msgok)
@@ -554,6 +553,7 @@ def get_image():
 
 
 @app.route('/monitoring_list_map', methods=['GET'])
+@req_token
 def monitoring_listmap():
     if request.method == 'GET':
         print("Listing Monitored Users...")
