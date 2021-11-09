@@ -6,7 +6,7 @@
 
 
  
- <p align="center" width="100%">
+ <p align="center" width="50%">
     <img width="33%" src="https://github.com/AlfredMoller/iagro_yolo/blob/master/data/images/aracnido.jpg">
     <img width="33%" src="https://github.com/AlfredMoller/iagro_yolo/blob/master/data/images/pulgon.jpg">
     <img width="33%" src="https://github.com/AlfredMoller/iagro_yolo/blob/master/data/images/moscas.jpg">
