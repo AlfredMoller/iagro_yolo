@@ -19,9 +19,6 @@ db_con = os.getenv("db_con")
 user_con = os.getenv("user_con")
 pass_con = os.getenv("pass_con")
 
-connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
-cursor = connection.cursor()
-
 load_dotenv()
 #------------------------------Creating a class to set and get values------------------------------
 class count_fail:
@@ -99,25 +96,71 @@ def chk_ipornode_two():
 
 #------------------------------JWT builder and token validator------------------------------
 def auth_builder(uui_usr):
-    token = jwt.encode({'public_id': uui_usr, 'exp': datetime.utcnow() + timedelta(seconds=15)},os.getenv("app_key"))
+    token = jwt.encode({'public_id': uui_usr, 'exp': datetime.utcnow() + timedelta(minutes=1)},os.getenv("app_key"))
     return token
 
-#Encontrar la manera de invalidad el token viejo  -> Expiration time, blacklist
+
+#-------------------Required token function to check if user is valid or not------------------
 def req_token(f):
     @wraps(f)
-    def check_token(*args,**kwargs):
-        token = None
+    def check_token(*args, **kwargs):
+        token_payload = None
+
         if 'access_token' in request.headers:
-            token = request.headers['access_token']
-        if not token:
+            token_payload = request.headers['access_token']
+        if not token_payload:
             return jsonify(status= 401, msg= "El sistema de autenticacion requiere de un Token!")
         try:
-            data = jwt.decode(token, os.getenv("app_key"))
-            current_user = cursor.callproc('get_loguuid', data['public_id'])
-        except:
-            return jsonify(status= 401,msg= "Token Invalido!")
+            data = jwt.decode(token_payload, os.getenv("app_key"), algorithms='HS256')
+            connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
+            cursor = connection.cursor()
+            cursor.callproc('get_loguuid', [data.get('public_id')])
+            current_user = cursor.fetchone()
+            print(current_user)
+        except jwt.ExpiredSignatureError as jwser:
+            print(jwser)
+            return jsonify(status= 440, msg= "Error...Sesión Expirada!")
+        except jwt.InvalidTokenError as jwie:
+            print(jwie)
+            return jsonify(status= 403, msg= "Error...Token Invalido!")
+        #return current_user in dicts
         return f(current_user, *args, **kwargs)
     return check_token
+
+
+#----------------------------------BlackList for expired token----------------------------------
+def blist_oken(jwt_payload):
+    try:
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
+        cursor = connection.cursor()
+        cursor.callproc('', [jwt_payload])
+        token_black_list = cursor.fetchone()
+        return token_black_list is not None
+    except Error as err:
+        print("Error al verif. expiracion de Token:",err)
+
+
+def reg_blist_token(jwt_payload):
+    try:
+        connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
+        cursor = connection.cursor()
+        cursor.callproc('', [jwt_payload])
+        connection.commit()
+        print("Token registrado!")
+    except Error as err:
+        print("Error al intentar almacenar el token expirado:",err)
+    finally:
+        cursor.close()
+        connection.close()
+
+
+
+
+
+
+
+
+
 
 
 
