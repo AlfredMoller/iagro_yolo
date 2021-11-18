@@ -209,9 +209,12 @@ def login():
 
                     if bcrypt.check_password_hash(row[0], usr_pass):
                         auth_token = auth_builder(uui_usr)
+                        #auth_token = auth_builder(bcrypt.generate_password_hash(uui_usr).decode('utf-8'))
                         status = True
                         count_s = count_status(status)
                         p1 = count_fail(count_s)
+                        print("Id publico:", uui_usr)
+                        print("nuevo uuid:",bcrypt.generate_password_hash(uui_usr).decode('utf-8'))
                         print(p1.get_pnlt_time())
                         #if current logged device is not the same as store previously -> Send message with bot
                         return jsonify(status=200, msg="Usuario Logeado!", nomb_usu=nombcompleto, id_usu=id_usu,
@@ -226,7 +229,6 @@ def login():
                             date_penalty = datetime.now()
                             sv_user_penalty(usr_ip, date_penalty, connection)
                             return jsonify(status=403, msg="Procederemos a darle una penalizacion de 3 minutos")
-                            # Almacenado en la Base de Datos, la penalizacion del usuario
                         else:
                             return jsonify(status=401, msg="Usuario o clave incorrecta...Intentelo de nuevo!")
                 else:
@@ -288,23 +290,15 @@ def register():
             cursor = connection.cursor()
             cursor.callproc('check_usrexist', [username])
             account = cursor.fetchone()
-            if account:
-                msgexist = "Ya existe este Usuario!"
-                print(msgexist)
-                return jsonify(message=msgexist)
-
+            if account != 0:
+                return jsonify(status=401, msg="Ya existe este Usuario...Vuelva a intentarlo!")
             else:
                 cursor.callproc('insert_newusr', [username, encryptpass, name, lastname, telephone, identif, user_uuid])
                 connection.commit()
-                msgok = "Usuario registrado con Éxito!"
-                print(msgok)
-                return jsonify(message=msgok)
+                return jsonify(status= 200, msg="Datos de usuario registrado con éxito!")
 
         except Error as error:
             print(error)
-            msgfail = "Error al Guardar!"
-            return jsonify(message=msgfail)
-
         finally:
             connection.close()
 
@@ -312,6 +306,7 @@ def register():
 # ---------------------------------------------------Update User Record Request---------------------------------------------------
 
 @app.route('/updt_user', methods=['POST'])
+#@req_token
 def updt_user_info():
     if request.method == 'POST':
 
@@ -329,17 +324,19 @@ def updt_user_info():
         try:
             connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
             cursor = connection.cursor()
-            cursor.callproc('update_usr', [usr_mail, encryptpass, usr_name, usr_last, usr_tel, usr_ident, usr_id, user_uuid])
-            connection.commit()
-            msgok = "Perfil de Usuario Actualizado!!!"
-            print(msgok)
-            return jsonify(message=msgok)
+            cursor.callproc()
+            chk_exist_data = cursor.fetchone('',[])
+            if chk_exist_data != 0:
+                return jsonify(status= 304, msg="Los datos requieren ser modificados al menos un valor!")
+            else:
+                cursor.callproc('update_usr', [usr_mail, encryptpass, usr_name, usr_last, usr_tel, usr_ident, usr_id, user_uuid])
+                connection.commit()
+                return jsonify(status= 200, msg="Datos de perfil de usuario actualizado!")
 
         except Error as error:
             print(error)
-            msgfail = "Error al Actualizar Perfil de Usuario Actualizado!"
-            return jsonify(message=msgfail)
-
+            #msgfail = "Error al Actualizar Perfil de Usuario Actualizado!"
+            #return jsonify(status= ,msg=msgfail)
         finally:
             connection.close()
 
@@ -570,15 +567,21 @@ def pest_listmap():
         return jsonify(get_position(date, usu))
 
 
-
 #@limiter.limit("3 per minute", key_func = lambda : check_user(request.form['username']) != True and request.form['ipadress'])
 @app.route('/uplad_file', methods=['POST'])
-def upl_file_dbx():
+@req_token
+def upl_file_dbx(current_user):
     if request.method == 'POST':
-        ip = request.form['hola']
-        #valor_final = json.dumps(chk_ipornode_one(ip),ensure_ascii=False)
-        return jsonify(value=chk_ipornode_one(ip),uuid= str(uuid.uuid4()))
-        """
+            ip = request.form['hola']
+            #ip = request.headers['x-access-token']
+            #valor_final = json.dumps(chk_ipornode_one(ip),ensure_ascii=False)
+            #data = jwt.decode(ip, os.getenv("app_key"), algorithms='HS256')
+            currentDate = datetime.utcnow() +timedelta(seconds=15)
+            print(ip)
+            #print(data.get('exp'))
+            return jsonify(value= current_user)
+
+    """
         print("Preparing upload file....")
         up_file = request.files['image']
         image_name = up_file.filename
