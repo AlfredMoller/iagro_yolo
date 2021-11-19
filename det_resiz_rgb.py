@@ -521,7 +521,8 @@ def predict_image(request_image, image_name):
 # ---------------------------------------------------Image Post Request---------------------------------------------------
 
 @app.route('/image', methods=['POST'])
-def get_image():
+@req_token
+def get_image(current_user):
     image = request.files["images"]
     image_name = image.filename
     if image_name.endswith('.png'):
@@ -550,7 +551,6 @@ def get_image():
 
 
 @app.route('/monitoring_list_map', methods=['GET'])
-@req_token
 def monitoring_listmap():
     if request.method == 'GET':
         print("Listing Monitored Users...")
@@ -559,11 +559,12 @@ def monitoring_listmap():
 
 
 @app.route('/list_map', methods=['GET'])
-def pest_listmap():
+@req_token
+def pest_listmap(current_user):
     if request.method == 'GET':
         print("Listing User History....")
         date = request.form.get('date')
-        usu = request.form.get('user')
+        usu = current_user.get('id')
         return jsonify(get_position(date, usu))
 
 
@@ -579,7 +580,7 @@ def upl_file_dbx(current_user):
             currentDate = datetime.utcnow() +timedelta(seconds=15)
             print(ip)
             #print(data.get('exp'))
-            return jsonify(value= current_user)
+            return jsonify(value= current_user.get('name'))
 
     """
         print("Preparing upload file....")
