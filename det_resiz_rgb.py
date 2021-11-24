@@ -130,8 +130,9 @@ def get_pest_id(name) -> int:
 
 
 # ---------------------------------------------------Save History Header Function---------------------------------------------------
-
-def save_history(list_partial):
+#save_history(*args, **kwargs)
+# because we're sending a simple argument like user and kwargs as sa list of dicts
+def save_history(usu, list_partial):
     # We have to check the size of the sent element into this function -> then store in the DB
     try:
         latitude = "-26.5326457"
@@ -140,8 +141,10 @@ def save_history(list_partial):
         city = "San Miguel"
         now = datetime.now()
         color = "#f3435"
-        idus = 1
+        idus = usu
         stat = "Infectado"
+        print(f"Valor para para guardar: {list_partial}")
+        print(f"Identificacion de usuario logeado es: {idus}")
 
         connection = psy.connect(host=host_con, port=port_con, database=db_con, user=user_con, password=pass_con)
         cursor = connection.cursor()
@@ -229,8 +232,10 @@ def login():
                             date_penalty = datetime.now()
                             sv_user_penalty(usr_ip, date_penalty, connection)
                             return jsonify(status=403, msg="Procederemos a darle una penalizacion de 3 minutos")
+                        # need to reset counter
                         else:
                             return jsonify(status=401, msg="Usuario o clave incorrecta...Intentelo de nuevo!")
+
                 else:
                     status = False
                     count_f = count_status(status)
@@ -240,6 +245,7 @@ def login():
                         date_penalty = datetime.now()
                         sv_user_penalty(usr_ip, date_penalty, connection)
                         return jsonify(status= 403, msg="Procederemos a darle una penalizacion de 3 minutos!  ‾＼_(ツ)_／‾")
+                        # need to reset counter
                     else:
                         return jsonify(status=404, msg="Usuario no se encuentra Registrado!")
             else:
@@ -461,7 +467,7 @@ def get_life_cycle(pest_values):
 
 # ---------------------------------------------------Image Prediction Function---------------------------------------------------
 
-def predict_image(request_image, image_name):
+def predict_image(request_image, image_name, usr):
     print(image_name)
     # we made a resize and crop of the image to make a quick and proper detection
     output_img = Image.open(crop_img(request_image, image_name))
@@ -496,7 +502,7 @@ def predict_image(request_image, image_name):
         for res in group:
             max_y = max(max_y, res["scores"])
         lista_predfinal.append({"name": key, "scores": max_y})
-    save_history(lista_predfinal)
+    save_history(usr, lista_predfinal)
 
     print('deployable list results to DB:', lista_predfinal)
 
@@ -538,11 +544,13 @@ def get_image(current_user):
 
         requ = Image.open(output_path + nuevo)
         lt = nuevo
-        df = predict_image(requ, lt)
+        usu = current_user.get('id')
+        df = predict_image(requ, lt, usu)
 
     else:
         request_image = Image.open(image)
-        df = predict_image(request_image, image_name)
+        usu = current_user.get('id')
+        df = predict_image(request_image, image_name, usu)
 
     try:
         return Response(response=df, status=200, mimetype='image/png')
@@ -573,13 +581,14 @@ def pest_listmap(current_user):
 @req_token
 def upl_file_dbx(current_user):
     if request.method == 'POST':
+
             ip = request.form['hola']
-            #ip = request.headers['x-access-token']
             #valor_final = json.dumps(chk_ipornode_one(ip),ensure_ascii=False)
             #data = jwt.decode(ip, os.getenv("app_key"), algorithms='HS256')
             currentDate = datetime.utcnow() +timedelta(seconds=15)
+            list_test = dict(a="prueba", b= current_user.get('usr'))
+            test_args(*current_user,**list_test)
             print(ip)
-            #print(data.get('exp'))
             return jsonify(value= current_user.get('name'))
 
     """
